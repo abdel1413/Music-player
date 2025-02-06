@@ -85,6 +85,76 @@ let userData = {
   songCurrentTime: 0,
 };
 
+//to delete song ,
+// 1 need to check the matching id in userData
+// if found matched song by id,
+// a) set song's currentSong to null
+//b) set song's currentTIme = 0
+//c) pause the song by calling pauseSong()
+// d) call sePLayerDisplay() to modify the display
+//2 filter the song from songarray (userData)
+//3) call highlightCurrentSong();
+//4) call setButtonAccessible();
+//5) assign the deleteSong(song.id) to onclick attribute in html;
+
+const deleteSong = (id) => {
+  if (userData?.currentSong?.id === id) {
+    userData.currentSong = null;
+    userData.songCurrentTime = 0;
+
+    pauseSong();
+    setPlayerDisplay();
+  }
+
+  userData.songs = userData?.songs.filter((song) => song.id !== id);
+  renderSongs(userData?.songs);
+  highlightCurrentSong();
+  setPlayButtonAccessibleText();
+
+  //when the playlist is empty create a reset button
+  //and display it and when clicked, it refresh
+  // the playlist to redisplay songs the the
+  //reset button disapears.
+
+  if (userData?.songs.length === 0) {
+    const resetButton = document.createElement("button");
+    const resetText = document.createTextNode("Reset Playlist");
+    resetButton.id = "reset";
+    resetButton.arialabel = "Reset playlist";
+    resetButton.appendChild(resetText);
+    playlistSongs.appendChild(resetButton);
+    //make the song reappear when the button is clicked
+    //and remove the button
+    resetButton.addEventListener("click", () => {
+      userData.songs = [...allSongs];
+      renderSongs(sortSongs());
+      setPlayButtonAccessibleText();
+      resetButton.remove();
+    });
+  }
+};
+
+//end the audio before deleting it and then start
+//playing the next audio
+audio.addEventListener("ended", () => {
+  const currentSongIndex = getCurrentSongIndex();
+  const nextSongExists = userData.songs.length - 1 > currentSongIndex;
+  if (nextSongExists) {
+    playNextSong();
+  } else {
+    //if no next song exist, set currentsong to null
+    //and songCurrentTime to 0
+    userData.currentSong = null;
+    userData.songCurrentTime = 0;
+
+    //update the player
+    pauseSong();
+    setPlayerDisplay();
+    highlightCurrentSong();
+    setPlayButtonAccessibleText();
+  }
+});
+
 const renderSongs = (array) => {
   const songHTML = array
     .map((song) => {
@@ -94,7 +164,7 @@ const renderSongs = (array) => {
       <span class="playlist-song-artist">${song.artist}</span>
       <span class="playlist-song-duration">${song.duration}</span>
     </button>
-    <button class="playlist-song-delete" aria-label="Delete ${song.title}">
+    <button class="playlist-song-delete" aria-label="Delete ${song.title}" onclick="deleteSong(${song.id})">
           <svg width="20" height="20" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="8" fill="#4d4d62"/>
           <path fill-rule="evenodd" clip-rule="evenodd" d="M5.32587 5.18571C5.7107 4.90301 6.28333 4.94814 6.60485 5.28651L8 6.75478L9.39515 5.28651C9.71667 4.94814 10.2893 4.90301 10.6741 5.18571C11.059 5.4684 11.1103 5.97188 10.7888 6.31026L9.1832 7.99999L10.7888 9.68974C11.1103 10.0281 11.059 10.5316 10.6741 10.8143C10.2893 11.097 9.71667 11.0519 9.39515 10.7135L8 9.24521L6.60485 10.7135C6.28333 11.0519 5.7107 11.097 5.32587 10.8143C4.94102 10.5316 4.88969 10.0281 5.21121 9.68974L6.8168 7.99999L5.21122 6.31026C4.8897 5.97188 4.94102 5.4684 5.32587 5.18571Z" fill="white"/></svg>
       </button>
@@ -124,6 +194,73 @@ const sortSongs = () => {
 
 renderSongs(sortSongs());
 
+//highlight the currently palying song
+//access  all the songs  in playlist
+//get the id of currently playing song among all the songs in playlist
+//sue .removeAttribute('aria-current') mthd on all the playlist songs
+//then  check if the id os currently playing song exist\
+// use .setAttribute('aria-current', 'true') to the playing song id
+const highlightCurrentSong = () => {
+  const playlistSongElements = document.querySelectorAll(".playlist-song");
+  const songToHighlight = document.getElementById(
+    `song-${userData?.currentSong?.id}`
+  );
+
+  //remove the aria-current attribute
+  //for each of song element
+  playlistSongElements.forEach((songEl) => {
+    songEl.removeAttribute("aria-current");
+  });
+
+  if (songToHighlight) songToHighlight.setAttribute("aria-current", "true");
+};
+
+//to play previous song,
+//check if there's no song playing. the exit by return return keyword
+const playPreivousSong = () => {
+  if (userData?.currentSong === null) {
+    return;
+  } else {
+    //if not get the index of the currently playing song
+    //and subtract 1 from the index
+    //assign the result to a const var whose id we'll pass into
+    //playsong funct as param
+    const currentSongIndex = getCurrentSongIndex();
+    const previousSong = userData?.songs[currentSongIndex - 1];
+    playSong(previousSong.id);
+  }
+};
+previousButton.addEventListener("click", playPreivousSong);
+
+const playNextSong = () => {
+  //check if no song is playing
+  //then play the first song in the list
+  if (userData?.currentSong === null) {
+    playSong(userData?.songs[0].id);
+  } else {
+    //if not get the  index of the one that is playing
+    //and add 1 to it. this will go to next song
+
+    const currentSongIndex = getCurrentSongIndex();
+    const nextSong = userData?.songs[currentSongIndex + 1];
+
+    playSong(nextSong.id);
+  }
+};
+nextButton.addEventListener("click", playNextSong);
+
+const pauseSong = () => {
+  // to pause a song, set array songcurrent time to
+  //audio current time
+  userData.songCurrentTime = audio.currentTime;
+  playButton.classList.remove("playing");
+
+  //call pause() methd on audio
+  audio.pause();
+};
+
+pauseButton.addEventListener("click", pauseSong);
+
 //create a play function to play a song
 //find song by id using find() on userData
 //it return the first matched song and assign it to variable
@@ -137,8 +274,9 @@ const playSong = (id) => {
   audio.title = song.title;
 
   //before audio starts playing. make sure
-  //it start form the beginning or check if
-  //there is not nother audio playing on
+  //check if no current song is playing or if the
+  //current song is different from the one that
+  //is about to be played.
   if (userData?.currentSong === null || userData?.currentSong.id !== song.id) {
     audio.currentTime = 0;
   } else {
@@ -164,75 +302,11 @@ playButton.addEventListener("click", () => {
   }
 });
 
-const pauseSong = () => {
-  // to pause a song, set array songcurrent time to audio current time
-  userData.songCurrentTime = audio.currentTime;
-  playButton.classList.remove("playing");
-
-  //call pause() methd on audio
-  audio.pause();
-};
-
-pauseButton.addEventListener("click", pauseSong);
-
 //get the index of current song so you can track
 //and play the next song
 //use .indexOf(id) methd which return index or -1 if not present
 const getCurrentSongIndex = () => {
   return userData?.songs.indexOf(userData?.currentSong);
-};
-
-const playNextSong = () => {
-  //check if no song is playing the play the first song in the list
-  if (userData?.currentSong === null) {
-    playSong(userData?.songs[0].id);
-  } else {
-    //if not get the  index of the one that is playing
-    //and add 1 to it. this will go to next song
-
-    const currentSongIndex = getCurrentSongIndex();
-    const nextSong = userData?.songs[currentSongIndex + 1];
-
-    playSong(nextSong.id);
-  }
-};
-nextButton.addEventListener("click", playNextSong);
-
-//to play previous song,
-//check if there's no song playing. the exit by return return keyword
-const playPreivousSong = () => {
-  if (userData?.currentSong === null) {
-    return;
-  } else {
-    //if not get the index of the currently playing song
-    //and subtract 1 from the index
-    //assign the result to a const var whose id we'll pass into
-    //playsong funct as param
-    const currentSongIndex = getCurrentSongIndex();
-    const previousSong = userData?.songs[currentSongIndex - 1];
-    playSong(previousSong.id);
-  }
-};
-previousButton.addEventListener("click", playPreivousSong);
-
-//highlight the currently palying song
-//access  all the songs  in playlist
-//get the id of currently playing song among all the songs in playlist
-//sue .removeAttribute('aria-current') mthd on all the playlist songs
-//then  check if the id os currently playing song exist\
-// use .setAttribute('aria-current', 'true') to the playing song id
-
-const highlightCurrentSong = () => {
-  const playlistSongElements = document.querySelectorAll(".playlist-song");
-  const songToHighlight = document.getElementById(
-    `song-${userData?.currentSong?.id}`
-  );
-
-  playlistSongElements.forEach((songEl) => {
-    songEl.removeAttribute("aria-current");
-  });
-
-  if (songToHighlight) songToHighlight.setAttribute("aria-current", "true");
 };
 
 //function  to display currently
@@ -245,12 +319,6 @@ const setPlayerDisplay = () => {
   const playerDisplSongArt = document.querySelector(
     ".player-display-song-artist"
   );
-
-  console.log(playerDisplSongArt);
-  console.log(playingSong);
-  console.log(songArtist);
-  console.log("tit", currentTitle);
-  console.log("ar", currentArtist);
 
   playingSong.textContent = currentTitle ? currentTitle : "";
 
